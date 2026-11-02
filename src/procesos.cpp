@@ -113,6 +113,12 @@ void verPstree()
 void demostracionConPs()
 {
     int creados = 0;
+    string tiempo1, tiempo2;
+    cout << "Segundos que dormira el hijo 1 (ej: 10): ";
+    cin >> tiempo1;
+    cout << "Segundos que dormira el hijo 2 (ej: 5): ";
+    cin >> tiempo2;
+
     cout << "Padre - PID = " << getpid() << endl;
 
     pid_t pid1 = fork();
@@ -121,7 +127,7 @@ void demostracionConPs()
     }
     else if (pid1 == 0) {
         cout << "Hijo 1 - PID = " << getpid() << ", PPID = " << getppid() << endl;
-        execl("/bin/sleep", "sleep", "10", (char *)NULL);
+        execl("/bin/sleep", "sleep", tiempo1.c_str(), (char *)NULL);
         cout << "Error en exec() del hijo 1." << endl;
         _exit(1);
     }
@@ -135,7 +141,7 @@ void demostracionConPs()
     }
     else if (pid2 == 0) {
         cout << "Hijo 2 - PID = " << getpid() << ", PPID = " << getppid() << endl;
-        execl("/bin/sleep", "sleep", "5", (char *)NULL);
+        execl("/bin/sleep", "sleep", tiempo2.c_str(), (char *)NULL);
         cout << "Error en exec() del hijo 2." << endl;
         _exit(1);
     }
