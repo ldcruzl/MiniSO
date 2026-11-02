@@ -90,6 +90,25 @@ void verPs()
     }
 }
 
+// Muestra el arbol de procesos de MiniSO usando pstree
+void verPstree()
+{
+    string yo = to_string(getpid());
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        cout << "Error en fork()." << endl;
+    }
+    else if (pid == 0) {
+        execl("/bin/pstree", "pstree", "-p", yo.c_str(), (char *)NULL);
+        cout << "Error en exec(). Si no esta instalado: sudo apt install psmisc" << endl;
+        _exit(1);
+    }
+    else {
+        waitpid(pid, NULL, 0);
+    }
+}
+
 // Crea dos hijos que duermen distinto tiempo y los muestra con ps
 void demostracionConPs()
 {
@@ -127,6 +146,8 @@ void demostracionConPs()
     sleep(1);
     cout << "\n--- Procesos vistos con ps ---" << endl;
     verPs();
+    cout << "\n--- Arbol de procesos (pstree) ---" << endl;
+    verPstree();
 
     int estado;
     for (int i = 0; i < creados; i++) {
