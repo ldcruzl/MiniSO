@@ -71,6 +71,70 @@ void ejecutarDosComandos()
     }
 }
 
+// Muestra los procesos hijos de MiniSO usando "ps"
+void verPs()
+{
+    string yo = to_string(getpid());
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        cout << "Error en fork()." << endl;
+    }
+    else if (pid == 0) {
+        execl("/bin/ps", "ps", "-o", "pid,ppid,stat,cmd", "--ppid", yo.c_str(), "-p", yo.c_str(), (char *)NULL);
+        cout << "Error en exec()." << endl;
+        _exit(1);
+    }
+    else {
+        waitpid(pid, NULL, 0);
+    }
+}
+
+// Crea dos hijos que duermen distinto tiempo y los muestra con ps
+void demostracionConPs()
+{
+    int creados = 0;
+    cout << "Padre - PID = " << getpid() << endl;
+
+    pid_t pid1 = fork();
+    if (pid1 < 0) {
+        cout << "Error en fork() del hijo 1." << endl;
+    }
+    else if (pid1 == 0) {
+        cout << "Hijo 1 - PID = " << getpid() << ", PPID = " << getppid() << endl;
+        execl("/bin/sleep", "sleep", "10", (char *)NULL);
+        cout << "Error en exec() del hijo 1." << endl;
+        _exit(1);
+    }
+    else {
+        creados++;
+    }
+
+    pid_t pid2 = fork();
+    if (pid2 < 0) {
+        cout << "Error en fork() del hijo 2." << endl;
+    }
+    else if (pid2 == 0) {
+        cout << "Hijo 2 - PID = " << getpid() << ", PPID = " << getppid() << endl;
+        execl("/bin/sleep", "sleep", "5", (char *)NULL);
+        cout << "Error en exec() del hijo 2." << endl;
+        _exit(1);
+    }
+    else {
+        creados++;
+    }
+
+    sleep(1);
+    cout << "\n--- Procesos vistos con ps ---" << endl;
+    verPs();
+
+    int estado;
+    for (int i = 0; i < creados; i++) {
+        pid_t fin = wait(&estado);
+        mostrarEstado(fin, estado);
+    }
+}
+
 void menuProcesos()
 {
     int op;
@@ -78,6 +142,7 @@ void menuProcesos()
     do {
         cout << "\n=== Modulo I: Gestion de procesos ===\n";
         cout << "1. Ejecutar dos comandos en procesos hijos concurrentes\n";
+        cout << "2. Demostracion con ps\n";
         cout << "0. Volver al menu principal\n";
         cout << "Opcion: ";;
         if (!(cin >> op))
@@ -86,6 +151,9 @@ void menuProcesos()
         switch (op) {
             case 1:
                 ejecutarDosComandos();
+                break;
+            case 2:
+                demostracionConPs();
                 break;
             case 0: 
                 break;
