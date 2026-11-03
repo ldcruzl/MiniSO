@@ -1,8 +1,10 @@
 #include "hilos.h"
 
 #include <condition_variable>
+#include <exception>
 #include <iostream>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -159,8 +161,125 @@ private:
     Consola& consola;
 };
 
+class ProductorConsumidor {
+public:
+    explicit ProductorConsumidor(const Configuracion& parametros)
+        : configuracion(parametros),
+          buffer(parametros.capacidad, parametros.elementos, consola)
+    {
+    }
+
+    // Red de seguridad RAII: nunca destruir un std::thread aun unible.
+    ~ProductorConsumidor()
+    {
+        buffer.cancelar();
+        unir(productores);
+        unir(consumidores);
+    }
+
+    void ejecutar()
+    {
+        consola.escribir("\n=== Inicio de simulacion ===");
+        try {
+            productores.reserve(configuracion.productores);
+            consumidores.reserve(configuracion.consumidores);
+            for (int i = 1; i <= configuracion.consumidores; ++i)
+                consumidores.emplace_back(&ProductorConsumidor::consumir, this, i);
+            for (int i = 1; i <= configuracion.productores; ++i)
+                productores.emplace_back(&ProductorConsumidor::producir, this, i);
+        } catch (const std::exception& error) {
+            buffer.cancelar();
+            unir(productores);
+            unir(consumidores);
+            consola.escribir("No se pudieron crear todos los hilos: ", error.what());
+        } catch (...) {
+            buffer.cancelar();
+            unir(productores);
+            unir(consumidores);
+            consola.escribir("Error inesperado al crear los hilos.");
+        }
+
+        unir(productores);
+        // Solo el coordinador cierra la produccion, despues del ultimo productor.
+        buffer.terminarProduccion();
+        unir(consumidores);
+        mostrarResumen(buffer.resultado());
+    }
+
+private:
+    static void unir(std::vector<std::thread>& hilos)
+    {
+        for (std::thread& hilo : hilos)
+            if (hilo.joinable()) hilo.join();
+    }
+
+    void producir(int id)
+    {
+        try {
+            consola.escribir("[PRODUCTOR P", id, "] Iniciando ejecucion.");
+            // Reparto ciclico: cada identificador pertenece a un solo productor.
+            for (int elemento = id; elemento <= configuracion.elementos;
+                 elemento += configuracion.productores) {
+                if (!buffer.insertar(elemento, id)) break;
+            }
+            consola.escribir("[PRODUCTOR P", id, "] Finalizacion del hilo.");
+        } catch (...) {
+            // Una excepcion nunca debe escapar de la funcion de un std::thread.
+            buffer.cancelar();
+        }
+    }
+
+    void consumir(int id)
+    {
+        try {
+            consola.escribir("[CONSUMIDOR C", id, "] Iniciando ejecucion.");
+            int elemento;
+            while (buffer.extraer(elemento, id)) {
+                // El procesamiento consiste en registrar y mostrar el identificador.
+            }
+            consola.escribir("[CONSUMIDOR C", id, "] Finalizacion del hilo.");
+        } catch (...) {
+            buffer.cancelar();
+        }
+    }
+
+    void mostrarResumen(const Resultado& resultado)
+    {
+        consola.escribir("\n=== Resumen de simulacion ===");
+        consola.escribir("Productores configurados: ", configuracion.productores);
+        consola.escribir("Consumidores configurados: ", configuracion.consumidores);
+        consola.escribir("Productores creados: ", productores.size());
+        consola.escribir("Consumidores creados: ", consumidores.size());
+        consola.escribir("Capacidad del buffer: ", configuracion.capacidad);
+        consola.escribir("Elementos solicitados: ", configuracion.elementos);
+        consola.escribir("Elementos producidos: ", resultado.producidos);
+        consola.escribir("Elementos consumidos: ", resultado.consumidos);
+        consola.escribir("Elementos pendientes: ", resultado.pendientes);
+        consola.escribir("Duplicados en produccion: ", resultado.duplicadosProduccion);
+        consola.escribir("Duplicados en consumo: ", resultado.duplicadosConsumo);
+        consola.escribir("Faltantes en produccion: ", resultado.faltantesProduccion);
+        consola.escribir("Faltantes en consumo: ", resultado.faltantesConsumo);
+        if (resultado.cancelada)
+            consola.escribir("Estado: EJECUCION CANCELADA POR UN ERROR.");
+        else if (resultado.aprobado(configuracion.elementos))
+            consola.escribir("Estado: TODOS LOS ELEMENTOS FUERON CONSUMIDOS.");
+        else
+            consola.escribir("Estado: ERROR DE INTEGRIDAD.");
+        consola.escribir("Prueba: ",
+                         resultado.aprobado(configuracion.elementos) ?
+                         "APROBADA." : "NO APROBADA.");
+    }
+
+    Configuracion configuracion;
+    Consola consola;
+    BufferCircular buffer;
+    std::vector<std::thread> productores;
+    std::vector<std::thread> consumidores;
+};
+
 } // namespace
 void menuHilos()
 {
-    std::cout << "menuHilos: en construccion\n";
+    ProductorConsumidor simulacion(Configuracion{});
+    simulacion.ejecutar();
 }
