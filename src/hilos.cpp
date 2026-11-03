@@ -3,7 +3,10 @@
 #include <condition_variable>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <mutex>
+#include <sstream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -277,9 +280,87 @@ private:
     std::vector<std::thread> consumidores;
 };
 
+// Limites educativos para evitar agotar hilos, memoria o inundar la consola.
+constexpr int MAX_HILOS_POR_TIPO = 64;
+constexpr int MAX_CAPACIDAD = 10000;
+constexpr int MAX_ELEMENTOS = 10000;
+
+bool leerEntero(const char* mensaje, int minimo, int maximo, int& valor)
+{
+    std::string linea;
+    while (true) {
+        std::cout << mensaje << std::flush;
+        if (!std::getline(std::cin, linea)) {
+            std::cout << "\nFin de entrada. Regresando al menu principal.\n";
+            return false;
+        }
+        std::istringstream entrada(linea);
+        long numero;
+        char sobrante;
+        if ((entrada >> numero) && !(entrada >> sobrante) &&
+            numero >= minimo && numero <= maximo) {
+            valor = static_cast<int>(numero);
+            return true;
+        }
+        std::cout << "Entrada invalida. Ingrese un entero entre "
+                  << minimo << " y " << maximo << ".\n";
+    }
+}
+
+bool configurar(Configuracion& parametros)
+{
+    return leerEntero("Productores (2-64): ", 2, MAX_HILOS_POR_TIPO,
+                      parametros.productores) &&
+           leerEntero("Consumidores (2-64): ", 2, MAX_HILOS_POR_TIPO,
+                      parametros.consumidores) &&
+           leerEntero("Capacidad del buffer (1-10000): ", 1, MAX_CAPACIDAD,
+                      parametros.capacidad) &&
+           leerEntero("Total de elementos (1-10000): ", 1, MAX_ELEMENTOS,
+                      parametros.elementos);
+}
+
+void mostrarDescripcion()
+{
+    std::cout << "\nProductor-consumidor con un buffer circular FIFO limitado.\n"
+              << "Cada productor genera identificadores unicos por reparto ciclico.\n"
+              << "El mutex protege el buffer, sus contadores y estados de cierre.\n"
+              << "notFull bloquea productores si esta lleno; notEmpty bloquea\n"
+              << "consumidores si esta vacio. No se utilizan esperas activas.\n"
+              << "Al terminar todos los productores se notifica el cierre; los\n"
+              << "consumidores vacian el buffer antes de finalizar.\n"
+              << "La consola tiene su propio mutex para no mezclar mensajes.\n"
+              << "Se verifican los identificadores producidos y consumidos uno a uno.\n"
+              << "Predeterminada: 2 productores, 2 consumidores, capacidad 5, 20 elementos.\n"
+              << "Limites: 64 hilos por tipo, capacidad y elementos hasta 10000.\n"
+              << "El orden de ejecucion y el reparto del consumo no son deterministas.\n";
+}
+
 } // namespace
 void menuHilos()
 {
-    ProductorConsumidor simulacion(Configuracion{});
-    simulacion.ejecutar();
+    // main usa operator>>: retirar solo el resto de su linea antes de getline.
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    while (true) {
+        std::cout << "\n=== Modulo II: Gestion de hilos ===\n"
+                  << "1. Ejecutar prueba predeterminada\n"
+                  << "2. Configurar y ejecutar prueba personalizada\n"
+                  << "3. Mostrar descripcion del escenario\n"
+                  << "0. Volver al menu principal\n";
+        int opcion;
+        if (!leerEntero("Opcion: ", 0, 3, opcion) || opcion == 0) return;
+        if (opcion == 3) {
+            mostrarDescripcion();
+            continue;
+        }
+        Configuracion parametros;
+        if (opcion == 2 && !configurar(parametros)) return;
+        try {
+            ProductorConsumidor simulacion(parametros);
+            simulacion.ejecutar();
+        } catch (const std::exception& error) {
+            std::cout << "No se pudo ejecutar la simulacion: " << error.what() << '\n';
+        } catch (...) {
+            std::cout << "Error inesperado al ejecutar la simulacion.\n";
+        }
+    }
 }
