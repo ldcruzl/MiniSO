@@ -34,7 +34,11 @@ public:
     explicit SimuladorPaginacion(std::size_t memFisica = 1024, std::size_t tamPag = 128);
 
     bool reiniciar(std::size_t nuevaMemFisica, std::size_t nuevoTamPag);
+    bool crearProceso(const std::string& nombre, std::size_t tamanoBytes);
+    bool liberarProceso(const std::string& nombre);
+
     void mostrarEstadoMarcos() const;
+    void mostrarTablaProceso(const std::string& nombre) const;
 
     std::size_t obtenerMemoriaFisica() const;
     std::size_t obtenerTamanoPagina() const;

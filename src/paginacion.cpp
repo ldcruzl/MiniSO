@@ -37,6 +37,30 @@ bool leerEntero(const string& mensaje, int minimo, int maximo, int& valor)
     }
 }
 
+// Lectura de identificador sin espacios ni nombres reservados.
+bool leerIdentificador(const string& mensaje, string& valor)
+{
+    while (true) {
+        cout << mensaje << flush;
+        if (!getline(cin, valor)) {
+            return false;
+        }
+        auto inicio = valor.find_first_not_of(" \t\r\n");
+        if (inicio == string::npos) {
+            cout << "Entrada invalida. El identificador no puede estar vacio.\n";
+            continue;
+        }
+        auto fin = valor.find_last_not_of(" \t\r\n");
+        valor = valor.substr(inicio, fin - inicio + 1);
+
+        if (valor == "LIBRE" || valor == "-") {
+            cout << "Identificador reservado. Elija otro nombre.\n";
+            continue;
+        }
+        return true;
+    }
+}
+
 } // namespace
 
 SimuladorPaginacion::SimuladorPaginacion(size_t memFisica, size_t tamPag)
@@ -136,6 +160,90 @@ const vector<MarcoFisico>& SimuladorPaginacion::obtenerMarcos() const
     return marcos;
 }
 
+// Asignacion no contigua: calcula paginas requeridas y extrae marcos libres de la cola.
+bool SimuladorPaginacion::crearProceso(const string& nombre, size_t tamanoBytes)
+{
+    if (nombre.empty() || nombre == "LIBRE") {
+        cout << "[ERROR] Identificador de proceso invalido.\n";
+        return false;
+    }
+    if (tamanoBytes == 0) {
+        cout << "[ERROR] El tamano del proceso debe ser mayor a 0 bytes.\n";
+        return false;
+    }
+    if (existeProceso(nombre)) {
+        cout << "[ERROR] El proceso '" << nombre << "' ya existe en el sistema.\n";
+        return false;
+    }
+
+    size_t paginasRequeridas = (tamanoBytes + tamPagina - 1) / tamPagina;
+    if (paginasRequeridas > colaMarcosLibres.size()) {
+        cout << "[ERROR: MEMORIA INSUFICIENTE] Proceso '" << nombre << "' requiere "
+             << paginasRequeridas << " marcos, pero solo hay " << colaMarcosLibres.size()
+             << " marco(s) libre(s).\n";
+        return false;
+    }
+
+    ProcesoPaginado nuevoProc;
+    nuevoProc.nombre = nombre;
+    nuevoProc.tamanoBytes = tamanoBytes;
+    nuevoProc.tablaPaginas.reserve(paginasRequeridas);
+
+    // Tabla de paginas: mapea cada pagina a un marco fisico disponible.
+    for (size_t pag = 0; pag < paginasRequeridas; ++pag) {
+        int marcoAsignado = colaMarcosLibres.front();
+        colaMarcosLibres.pop_front();
+
+        marcos[static_cast<size_t>(marcoAsignado)].libre = false;
+        marcos[static_cast<size_t>(marcoAsignado)].proceso = nombre;
+        marcos[static_cast<size_t>(marcoAsignado)].pagina = static_cast<int>(pag);
+
+        nuevoProc.tablaPaginas.push_back(EntradaTablaPagina{
+            static_cast<int>(pag),
+            marcoAsignado,
+            true
+        });
+    }
+
+    procesos[nombre] = nuevoProc;
+
+    cout << "[ASIGNACION EXITOSA] Proceso '" << nombre << "' creado ("
+         << tamanoBytes << " B, " << paginasRequeridas << " pagina(s)).\n";
+    cout << "Marcos asignados: ";
+    for (size_t i = 0; i < nuevoProc.tablaPaginas.size(); ++i) {
+        cout << "Pag " << nuevoProc.tablaPaginas[i].pagina << " -> Marco "
+             << nuevoProc.tablaPaginas[i].marco
+             << (i + 1 < nuevoProc.tablaPaginas.size() ? ", " : "\n");
+    }
+    return true;
+}
+
+// Liberacion: devuelve todos los marcos del proceso a la cola de marcos disponibles.
+bool SimuladorPaginacion::liberarProceso(const string& nombre)
+{
+    auto it = procesos.find(nombre);
+    if (it == procesos.end()) {
+        cout << "[ERROR] No se encontro el proceso '" << nombre << "'.\n";
+        return false;
+    }
+
+    const auto& proc = it->second;
+    for (const auto& entrada : proc.tablaPaginas) {
+        int idMarco = entrada.marco;
+        if (idMarco >= 0 && static_cast<size_t>(idMarco) < totalMarcos) {
+            marcos[static_cast<size_t>(idMarco)].libre = true;
+            marcos[static_cast<size_t>(idMarco)].proceso = "LIBRE";
+            marcos[static_cast<size_t>(idMarco)].pagina = -1;
+            colaMarcosLibres.push_back(idMarco);
+        }
+    }
+
+    cout << "[LIBERACION] Proceso '" << nombre << "' liberado ("
+         << proc.tablaPaginas.size() << " marco(s) devuelto(s) a memoria libre).\n";
+    procesos.erase(it);
+    return true;
+}
+
 void SimuladorPaginacion::mostrarEstadoMarcos() const
 {
     cout << "\n--- Estado de Marcos Fisicos ---\n";
@@ -162,6 +270,33 @@ void SimuladorPaginacion::mostrarEstadoMarcos() const
          << libres << "\n";
 }
 
+void SimuladorPaginacion::mostrarTablaProceso(const string& nombre) const
+{
+    auto it = procesos.find(nombre);
+    if (it == procesos.end()) {
+        cout << "[ERROR] No se encontro el proceso '" << nombre << "'.\n";
+        return;
+    }
+
+    const auto& proc = it->second;
+    cout << "\n--- Tabla de Paginas: Proceso '" << proc.nombre
+         << "' (" << proc.tamanoBytes << " B, " << proc.tablaPaginas.size() << " paginas) ---\n";
+
+    for (const auto& entrada : proc.tablaPaginas) {
+        size_t inicioLogico = static_cast<size_t>(entrada.pagina) * tamPagina;
+        size_t finLogico = inicioLogico + tamPagina;
+        if (finLogico > proc.tamanoBytes) finLogico = proc.tamanoBytes;
+
+        size_t inicioFisico = static_cast<size_t>(entrada.marco) * tamPagina;
+        size_t finFisico = inicioFisico + tamPagina;
+
+        cout << "Pagina " << entrada.pagina << ": Rango logico [" << inicioLogico
+             << " - " << finLogico << ") B -> Marco " << entrada.marco
+             << " [" << inicioFisico << " - " << finFisico << ") B | "
+             << (entrada.valida ? "VALIDA" : "INVALIDA") << "\n";
+    }
+}
+
 // Interfaz interactiva: traduce operaciones del usuario al simulador de paginacion.
 void menuPaginacion()
 {
@@ -170,14 +305,43 @@ void menuPaginacion()
 
     while (true) {
         cout << "\n=== Modulo III: Gestion de memoria (Paginacion) ===\n"
-             << "1. Visualizar estado de marcos fisicos\n"
+             << "1. Crear proceso y asignar marcos\n"
+             << "2. Liberar proceso\n"
+             << "3. Visualizar estado de marcos fisicos\n"
+             << "4. Visualizar tabla de paginas de un proceso\n"
              << "0. Volver al menu principal\n";
 
         int opcion;
-        if (!leerEntero("Opcion: ", 0, 1, opcion) || opcion == 0) return;
+        if (!leerEntero("Opcion: ", 0, 4, opcion) || opcion == 0) return;
 
-        if (opcion == 1) {
-            simulador.mostrarEstadoMarcos();
+        switch (opcion) {
+            case 1: {
+                string nombre;
+                int tamano;
+                if (!leerIdentificador("Identificador del proceso (ej: A): ", nombre)) return;
+                int maxTam = static_cast<int>(simulador.obtenerMemoriaFisica());
+                string msgTam = "Tamano en bytes (1-" + to_string(maxTam) + "): ";
+                if (!leerEntero(msgTam, 1, maxTam, tamano)) return;
+                simulador.crearProceso(nombre, static_cast<size_t>(tamano));
+                break;
+            }
+            case 2: {
+                string nombre;
+                if (!leerIdentificador("Identificador del proceso a liberar: ", nombre)) return;
+                simulador.liberarProceso(nombre);
+                break;
+            }
+            case 3:
+                simulador.mostrarEstadoMarcos();
+                break;
+            case 4: {
+                string nombre;
+                if (!leerIdentificador("Identificador del proceso: ", nombre)) return;
+                simulador.mostrarTablaProceso(nombre);
+                break;
+            }
+            default:
+                break;
         }
     }
 }
