@@ -30,6 +30,7 @@ public:
     bool asignarFirstFit(const std::string& proceso, std::size_t tamanoSolicitado);
     bool liberar(const std::string& proceso);
     void coalescer();
+    void mostrarMemoria() const;
 
     MetricasMemoria calcularMetricas() const;
     std::size_t obtenerMemoriaTotal() const;
