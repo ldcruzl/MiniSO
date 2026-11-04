@@ -11,7 +11,7 @@ en Linux. Proyecto de la Unidad 01 de Sistemas Operativos.
 
 ## Módulos
 
-1. **Gestión de procesos:** `fork()`, `exec()`, `waitpid()`, PID/PPID.
+1. **Gestión de procesos:** `fork()`, `exec()`, `wait()` / `waitpid()`, PID/PPID.
 2. **Gestión de hilos:** productor-consumidor con mutex y variables de condición.
 3. **Gestión de memoria:** particionamiento (First-Fit) y paginación.
 
@@ -38,6 +38,47 @@ Para limpiar los archivos compilados: `make clean`.
         ├── hilos.cpp / hilos.h
         ├── particiones.cpp / particiones.h
         └── paginacion.cpp / paginacion.h
+
+## Módulo I: gestión de procesos
+
+Desde `./miniso`, selecciona **1** para abrir el módulo y después:
+
+- **1:** ejecuta dos comandos en procesos hijos concurrentes. Se escribe el
+  nombre de cada comando (una sola palabra, por ejemplo `ls`, `date` o `pwd`),
+  que se busca en `/bin`.
+- **2:** demostración con `ps` y `pstree`. Dos hijos ejecutan `sleep` durante los
+  segundos que indique el usuario y, mientras corren, el padre muestra los
+  procesos con `ps` y el árbol con `pstree`.
+- **0:** vuelve al menú principal.
+
+### Organización y llamadas al sistema
+La interfaz pública es `menuProcesos()` en `src/procesos.h`; las funciones
+auxiliares (`ejecutarDosComandos`, `mostrarEstado`, `verPs`, `verPstree` y
+`demostracionConPs`) están en `src/procesos.cpp`.
+
+- **`fork()`:** crea cada proceso hijo. Si falla, se informa el error y se
+  continúa con los hijos que sí se crearon.
+- **`execl()`:** el hijo reemplaza su programa por `/bin/<comando>`. Si falla,
+  informa el error y termina con `_exit(1)`.
+- **`getpid()` / `getppid()`:** muestran el PID y el PPID del padre y de cada hijo.
+- **`wait()`:** el padre espera una vez por cada hijo creado y recoge al primero
+  que termine.
+- **`waitpid()`:** espera al proceso auxiliar que ejecuta `ps` o `pstree`, para
+  no recoger por error a los hijos `sleep`.
+- **Estado de finalización:** se interpreta con `WIFEXITED`, `WEXITSTATUS`,
+  `WIFSIGNALED` y `WTERMSIG` (código de salida o señal).
+
+### Validación realizada
+
+| Escenario | Entrada | Resultado |
+| --- | --- | --- |
+| C1 | `ls` y `date` | Dos hijos con PPID igual al PID del padre; ambos terminan con código 0 |
+| C2 | `ls` y `noexiste` | Error de `exec` en el hijo 2, que termina con código 1 |
+| C3 | `sleep` de 10 y 5 segundos | `ps` y `pstree` muestran a los hijos; termina antes el de 5 s |
+| C4 | tiempo `abc` | `sleep` rechaza el valor, el hijo termina con código 1 y aparece como zombi (`Z+`) en `ps` |
+
+Limitaciones: en la opción 1 cada comando es una sola palabra, sin argumentos, y
+se busca solo en `/bin`. Si `pstree` no está instalado: `sudo apt install psmisc`.
 
 ## Módulo II: gestión de hilos
 Desde `./miniso`, selecciona **2** para abrir el módulo y después:
