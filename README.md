@@ -122,8 +122,50 @@ Los verificadores, bibliotecas y ejecutables de diagnóstico no se incorporan al
 repositorio. Para repetir manualmente cada escenario, usa la opción personalizada
 con los valores de la tabla; para retirar los artefactos de compilación, `make clean`.
 
+## Módulo III: gestión de memoria — particionamiento
+
+El simulador implementa particionamiento contiguo de memoria variable mediante
+el algoritmo First-Fit. Permite configurar la capacidad total, asignar y liberar
+memoria por proceso y visualizar el estado de los bloques.
+
+- **Asignación First-Fit:** selecciona el primer bloque libre con espacio
+  suficiente. Si sobra memoria, divide el bloque y crea una partición libre
+  residual.
+- **Liberación y coalescing:** al liberar un proceso, los bloques libres
+  contiguos se fusionan automáticamente para recuperar espacios mayores.
+- **Fragmentación externa:** identifica cuando la memoria libre total es
+  suficiente para una solicitud, pero está distribuida en bloques que no
+  alcanzan individualmente el tamaño requerido.
+- **Estado de memoria:** muestra los rangos, tamaños y disponibilidad de los
+  bloques, además de métricas de memoria ocupada, libre y mayor bloque
+  contiguo.
+
+La capacidad predeterminada es de **1000 KB** y puede modificarse desde el
+menú del módulo.
+
+## Módulo III: gestión de memoria — paginación
+
+El simulador implementa administración de memoria virtual mediante paginación.
+Permite configurar la memoria física y el tamaño de página, crear y liberar
+procesos y consultar sus tablas de páginas.
+
+- **Asignación de marcos:** divide los procesos en páginas y las asigna a marcos
+  físicos disponibles de forma no contigua.
+- **Tabla de páginas:** mantiene la correspondencia entre las páginas de cada
+  proceso y los marcos físicos asignados.
+- **Traducción de direcciones:** convierte direcciones lógicas en físicas
+  mediante el número de página, el desplazamiento y el marco correspondiente.
+  También detecta direcciones inválidas o procesos inexistentes.
+- **Estado de memoria:** muestra los marcos físicos, sus rangos de direcciones
+  y su disponibilidad.
+- **Reconfiguración:** permite modificar la memoria física y el tamaño de página,
+  reiniciando las asignaciones existentes.
+
+El tamaño de página debe ser una potencia de 2. La configuración predeterminada
+es de **1024 B de memoria física**, páginas de **128 B** y **8 marcos**.
+
 ## Integrantes
 
 - Luis David Cruz Llica
-- (integrante 2)
-- (integrante 3)
+- Angel Catari Paccoricuna
+- Alex Jeanpier Chata Chino
