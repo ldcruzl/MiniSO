@@ -256,6 +256,18 @@ void SimuladorParticiones::mostrarMemoria() const
               << " libre" << (libres == 1 ? "" : "s") << ")\n";
 }
 
+void SimuladorParticiones::mostrarDescripcion() const
+{
+    std::cout << "\nParticionamiento contiguo de memoria con algoritmo First-Fit.\n"
+              << "La memoria se divide dinamicamente en particiones variables segun la demanda.\n"
+              << "First-Fit asigna en el primer bloque libre con tamano suficiente, dividiendo\n"
+              << "el excedente como un nuevo bloque libre residual.\n"
+              << "Al liberar un bloque, la coalescencia fusiona de inmediato bloques contiguos libres.\n"
+              << "La fragmentacion externa ocurre cuando la memoria libre total acumulada es\n"
+              << "suficiente para una solicitud, pero ningun bloque contiguo individual alcanza su tamano.\n"
+              << "Capacidad predeterminada: 1000 KB. Todas las operaciones son interactivas.\n";
+}
+
 // Interfaz interactiva: traduce las operaciones seleccionadas por el usuario hacia el simulador de memoria.
 void menuParticiones()
 {
@@ -268,10 +280,12 @@ void menuParticiones()
                   << "1. Asignar memoria a proceso (First-Fit)\n"
                   << "2. Liberar memoria de proceso\n"
                   << "3. Visualizar estado de la memoria\n"
+                  << "4. Reconfigurar capacidad de memoria\n"
+                  << "5. Mostrar descripcion del modulo\n"
                   << "0. Volver al menu principal\n";
 
         int opcion;
-        if (!leerEntero("Opcion: ", 0, 3, opcion) || opcion == 0) return;
+        if (!leerEntero("Opcion: ", 0, 5, opcion) || opcion == 0) return;
 
         switch (opcion) {
             case 1: {
@@ -292,6 +306,17 @@ void menuParticiones()
             }
             case 3:
                 simulador.mostrarMemoria();
+                break;
+            case 4: {
+                int nuevaCap;
+                if (!leerEntero("Nueva capacidad total de memoria en KB (1-100000): ",
+                                1, 100000, nuevaCap)) return;
+                simulador.reiniciar(static_cast<std::size_t>(nuevaCap));
+                std::cout << "[EXITO] Memoria reiniciada a " << nuevaCap << " KB.\n";
+                break;
+            }
+            case 5:
+                simulador.mostrarDescripcion();
                 break;
             default:
                 break;

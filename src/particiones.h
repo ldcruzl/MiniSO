@@ -31,6 +31,7 @@ public:
     bool liberar(const std::string& proceso);
     void coalescer();
     void mostrarMemoria() const;
+    void mostrarDescripcion() const;
 
     MetricasMemoria calcularMetricas() const;
     std::size_t obtenerMemoriaTotal() const;
