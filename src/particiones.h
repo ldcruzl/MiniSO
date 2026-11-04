@@ -15,11 +15,23 @@ struct BloqueMemoria {
     bool libre;
 };
 
+// Metricas consolidadas de memoria calculadas en una sola pasada.
+struct MetricasMemoria {
+    std::size_t ocupada = 0;
+    std::size_t libre = 0;
+    std::size_t mayorLibre = 0;
+};
+
 class SimuladorParticiones {
 public:
     explicit SimuladorParticiones(std::size_t capacidadInicial = 1000);
 
     void reiniciar(std::size_t nuevaCapacidad);
+    bool asignarFirstFit(const std::string& proceso, std::size_t tamanoSolicitado);
+    bool liberar(const std::string& proceso);
+    void coalescer();
+
+    MetricasMemoria calcularMetricas() const;
     std::size_t obtenerMemoriaTotal() const;
     bool existeProceso(const std::string& proceso) const;
     const std::vector<BloqueMemoria>& obtenerBloques() const;
