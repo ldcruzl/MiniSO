@@ -244,6 +244,40 @@ bool SimuladorPaginacion::liberarProceso(const string& nombre)
     return true;
 }
 
+// Traduccion: direccion fisica = (marco * tamPagina) + desplazamiento.
+ResultadoTraduccion SimuladorPaginacion::traducirDireccion(const string& nombre, size_t dirLogica) const
+{
+    ResultadoTraduccion res;
+    auto it = procesos.find(nombre);
+    if (it == procesos.end()) {
+        res.mensajeError = "El proceso '" + nombre + "' no existe en memoria.";
+        return res;
+    }
+
+    const auto& proc = it->second;
+
+    // Proteccion de memoria: comprueba que la direccion logica no exceda el tamano del proceso.
+    if (dirLogica >= proc.tamanoBytes) {
+        res.mensajeError = "Direccion logica " + to_string(dirLogica) +
+                           " invalida: supera el tamano del proceso '" + nombre +
+                           "' (" + to_string(proc.tamanoBytes) + " B).";
+        return res;
+    }
+
+    res.pagina = dirLogica / tamPagina;
+    res.desplazamiento = dirLogica % tamPagina;
+
+    if (res.pagina >= proc.tablaPaginas.size() || !proc.tablaPaginas[res.pagina].valida) {
+        res.mensajeError = "Fallo de pagina: pagina " + to_string(res.pagina) + " no asignada o invalida.";
+        return res;
+    }
+
+    res.marco = proc.tablaPaginas[res.pagina].marco;
+    res.direccionFisica = (static_cast<size_t>(res.marco) * tamPagina) + res.desplazamiento;
+    res.exito = true;
+    return res;
+}
+
 void SimuladorPaginacion::mostrarEstadoMarcos() const
 {
     cout << "\n--- Estado de Marcos Fisicos ---\n";
@@ -297,6 +331,19 @@ void SimuladorPaginacion::mostrarTablaProceso(const string& nombre) const
     }
 }
 
+void SimuladorPaginacion::mostrarDescripcion() const
+{
+    cout << "\nSimulador de administracion de memoria virtual mediante Paginacion.\n"
+         << "La memoria fisica se divide en marcos de tamano fijo (potencia de 2),\n"
+         << "y el espacio logico de cada proceso se fragmenta en paginas del mismo tamano.\n"
+         << "Las paginas se asignan a marcos libres de forma no contigua mediante la Tabla de Paginas.\n"
+         << "Traduccion logica a fisica:\n"
+         << "  - Pagina = direccion_logica / tamano_pagina\n"
+         << "  - Desplazamiento = direccion_logica % tamano_pagina\n"
+         << "  - Direccion fisica = (marco * tamano_pagina) + desplazamiento\n"
+         << "Configuracion predeterminada: 1024 B de memoria fisica, paginas de 128 B (8 marcos).\n";
+}
+
 // Interfaz interactiva: traduce operaciones del usuario al simulador de paginacion.
 void menuPaginacion()
 {
@@ -307,12 +354,15 @@ void menuPaginacion()
         cout << "\n=== Modulo III: Gestion de memoria (Paginacion) ===\n"
              << "1. Crear proceso y asignar marcos\n"
              << "2. Liberar proceso\n"
-             << "3. Visualizar estado de marcos fisicos\n"
-             << "4. Visualizar tabla de paginas de un proceso\n"
+             << "3. Traducir direccion logica a fisica\n"
+             << "4. Visualizar estado de marcos fisicos\n"
+             << "5. Visualizar tabla de paginas de un proceso\n"
+             << "6. Reconfigurar memoria fisica y tamano de pagina\n"
+             << "7. Mostrar descripcion del modulo\n"
              << "0. Volver al menu principal\n";
 
         int opcion;
-        if (!leerEntero("Opcion: ", 0, 4, opcion) || opcion == 0) return;
+        if (!leerEntero("Opcion: ", 0, 7, opcion) || opcion == 0) return;
 
         switch (opcion) {
             case 1: {
@@ -331,15 +381,51 @@ void menuPaginacion()
                 simulador.liberarProceso(nombre);
                 break;
             }
-            case 3:
+            case 3: {
+                string nombre;
+                int dirLogica;
+                if (!leerIdentificador("Identificador del proceso: ", nombre)) return;
+                if (!leerEntero("Direccion logica en bytes: ", 0, 1000000, dirLogica)) return;
+
+                ResultadoTraduccion res = simulador.traducirDireccion(nombre, static_cast<size_t>(dirLogica));
+                if (res.exito) {
+                    size_t tamPag = simulador.obtenerTamanoPagina();
+                    cout << "\n[TRADUCCION EXITOSA] Proceso '" << nombre << "'\n"
+                         << "- Direccion logica: " << dirLogica << "\n"
+                         << "- Numero de pagina: " << res.pagina << " (" << dirLogica << " / " << tamPag << ")\n"
+                         << "- Desplazamiento:   " << res.desplazamiento << " (" << dirLogica << " % " << tamPag << ")\n"
+                         << "- Marco asignado:   " << res.marco << "\n"
+                         << "- Direccion fisica: " << res.direccionFisica << " (" << res.marco << " * "
+                         << tamPag << " + " << res.desplazamiento << ")\n";
+                } else {
+                    cout << "[ERROR DE TRADUCCION] " << res.mensajeError << "\n";
+                }
+                break;
+            }
+            case 4:
                 simulador.mostrarEstadoMarcos();
                 break;
-            case 4: {
+            case 5: {
                 string nombre;
                 if (!leerIdentificador("Identificador del proceso: ", nombre)) return;
                 simulador.mostrarTablaProceso(nombre);
                 break;
             }
+            case 6: {
+                int nuevaMem;
+                int nuevoTamPag;
+                if (!leerEntero("Nueva memoria fisica en bytes (64-1000000): ", 64, 1000000, nuevaMem)) return;
+                if (!leerEntero("Nuevo tamano de pagina en bytes (debe ser potencia de 2, ej. 64, 128, 256): ",
+                                1, nuevaMem, nuevoTamPag)) return;
+                if (simulador.reiniciar(static_cast<size_t>(nuevaMem), static_cast<size_t>(nuevoTamPag))) {
+                    cout << "[EXITO] Memoria fisica reconfigurada a " << nuevaMem << " B, paginas de "
+                         << nuevoTamPag << " B (" << simulador.obtenerTotalMarcos() << " marcos totales).\n";
+                }
+                break;
+            }
+            case 7:
+                simulador.mostrarDescripcion();
+                break;
             default:
                 break;
         }

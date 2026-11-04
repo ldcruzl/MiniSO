@@ -29,6 +29,16 @@ struct ProcesoPaginado {
     std::vector<EntradaTablaPagina> tablaPaginas;
 };
 
+// Resultado del proceso de traduccion de una direccion logica.
+struct ResultadoTraduccion {
+    bool exito = false;
+    std::size_t pagina = 0;
+    std::size_t desplazamiento = 0;
+    int marco = -1;
+    std::size_t direccionFisica = 0;
+    std::string mensajeError;
+};
+
 class SimuladorPaginacion {
 public:
     explicit SimuladorPaginacion(std::size_t memFisica = 1024, std::size_t tamPag = 128);
@@ -36,9 +46,11 @@ public:
     bool reiniciar(std::size_t nuevaMemFisica, std::size_t nuevoTamPag);
     bool crearProceso(const std::string& nombre, std::size_t tamanoBytes);
     bool liberarProceso(const std::string& nombre);
+    ResultadoTraduccion traducirDireccion(const std::string& nombre, std::size_t dirLogica) const;
 
     void mostrarEstadoMarcos() const;
     void mostrarTablaProceso(const std::string& nombre) const;
+    void mostrarDescripcion() const;
 
     std::size_t obtenerMemoriaFisica() const;
     std::size_t obtenerTamanoPagina() const;
