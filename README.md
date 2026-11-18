@@ -216,3 +216,4 @@ es de **1024 B de memoria física**, páginas de **128 B** y **8 marcos**.
 | Integrante | Video |
 | --- | --- |
 | Luis David Cruz Llica (ldcruzl) | [Ver video](https://youtu.be/EdUESlpgG2c) |
+| Angel Catari Paccoricuna (acatarip) | [Ver video](https://youtu.be/OkbiYybvaNw) |
