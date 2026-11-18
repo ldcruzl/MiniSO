@@ -210,3 +210,11 @@ es de **1024 B de memoria física**, páginas de **128 B** y **8 marcos**.
 - Luis David Cruz Llica
 - Angel Catari Paccoricuna
 - Alex Jeanpier Chata Chino
+
+## Videos de demostración
+
+| Integrante | Video |
+| --- | --- |
+| Luis David Cruz Llica (ldcruzl) | [Ver video](https://youtu.be/EdUESlpgG2c) |
+| Angel Catari Paccoricuna | Pendiente |
+| Alex Jeanpier Chata Chino | Pendiente |
