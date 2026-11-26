@@ -217,3 +217,4 @@ es de **1024 B de memoria física**, páginas de **128 B** y **8 marcos**.
 | --- | --- |
 | Luis David Cruz Llica (ldcruzl) | [Ver video](https://youtu.be/EdUESlpgG2c) |
 | Angel Catari Paccoricuna (acatarip) | [Ver video](https://youtu.be/OkbiYybvaNw) |
+| Alex Jeanpier Chata Chino (Jeanpier-CRH) | [Ver video](https://youtu.be/E3kXoYE0HF0) |
